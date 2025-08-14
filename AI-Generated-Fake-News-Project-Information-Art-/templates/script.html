@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generated Script</title>
+    <style>
+        body {
+            margin: 0;
+            background: url("/static/images/reel.gif") no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Courier New', Courier, monospace;
+            color: #fff;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            height: 100vh;
+            padding-top: 100px;
+        }
+
+        #scriptContainer {
+            display: flex;
+            gap: 130px;
+            max-width: 85%;
+            width: 100%;
+            margin-top: 230px;
+        }
+
+        .scriptSection {
+            padding: 20px;
+            border-radius: 10px;
+            width: 30%;
+            box-sizing: border-box;
+            min-height: 150px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            overflow: visible;
+            height: 300px;
+        }
+
+        .scriptSection:hover {
+            opacity: 0.8;
+        }
+
+        .scriptTitle {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .scriptText {
+            white-space: pre-wrap;
+            text-align: center;
+            font-size: 0.8em;
+            line-height: 1.5em;
+        }
+
+        .videoPlaceholder {
+            width: 100%;
+            height: 60%;
+            position: absolute;
+            top: 50;
+            left: 0;
+            border-radius: 10px;
+            object-fit: cover;
+            display: none;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="scriptContainer">Loading script...</div>
+
+    <script>
+        const script = sessionStorage.getItem('generatedScript');
+        const selectedCountry = sessionStorage.getItem('selectedCountry');
+        const container = document.getElementById('scriptContainer');
+        const clickSequence = [];
+
+        console.log("Retrieved script from sessionStorage:", script);
+        console.log("Selected country:", selectedCountry);
+
+        if (script) {
+            const shots = script.split(/(?=\*\*Shot \d+\*\*)/i).filter(shot => shot.trim() !== '');
+            if (shots.length === 0) {
+                container.textContent = "No script available. Please try again.";
+            } else {
+                container.innerHTML = '';
+
+                shots.forEach((shot, index) => {
+                    const shotMatch = shot.match(/\*\*Shot\s+\d+\*\*/i);
+                    const sceneDescription = shot.replace(/\*\*Shot\s+\d+\*\*/i, '').trim();
+
+                    if (shotMatch) {
+                        const shotTitle = shotMatch[0];
+
+                        const section = document.createElement('div');
+                        section.classList.add('scriptSection');
+                        section.setAttribute('data-index', index);
+
+                        const title = document.createElement('div');
+                        title.classList.add('scriptTitle');
+                        title.textContent = shotTitle;
+
+                        const text = document.createElement('div');
+                        text.classList.add('scriptText');
+                        text.textContent = sceneDescription;
+
+                        const video = document.createElement('video');
+                        video.src = '/static/videos/videotrans.mp4';
+                        video.autoplay = true;
+                        video.loop = true;
+                        video.muted = true;
+                        video.classList.add('videoPlaceholder');
+                        section.appendChild(video);
+
+                        section.appendChild(title);
+                        section.appendChild(text);
+                        container.appendChild(section);
+
+                        section.addEventListener('click', () => {
+                            clickSequence.push(index);
+                            title.style.display = 'none';
+                            text.style.display = 'none';
+                            video.style.display = 'block';
+
+                            setTimeout(() => {
+                                const folderPath = `/static/videos/${selectedCountry}`;
+                                const newVideoSrc = `${folderPath}/${index + 1}.mp4`;
+                                video.src = newVideoSrc;
+                                video.play();
+                            }, 10000);
+                        });
+                    }
+                });
+            }
+        } else {
+            container.textContent = "No script available. Please try again.";
+        }
+    </script>
+</body>
+</html>

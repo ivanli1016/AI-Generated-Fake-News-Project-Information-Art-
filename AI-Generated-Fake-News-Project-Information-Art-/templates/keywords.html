@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Keywords for {{ country }}</title>
+    <style>
+        /* 全局样式 */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: url("/static/images/background01.gif") no-repeat center center fixed;
+            background-size: cover;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-top: 20px;
+        }
+
+        .floating {
+            position: absolute;
+            color: #fff;
+            font-size: 20px;
+            white-space: nowrap;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .floating:hover {
+            animation-play-state: paused;
+            transform: scale(1.2);
+        }
+
+        #loadingContainer {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+        }
+
+        #loadingContainer img {
+            width: 1000px;
+            height: auto;
+        }
+
+        @media (max-width: 768px) {
+            #loadingContainer img {
+                width: 200px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #loadingContainer img {
+                width: 150px;
+            }
+        }
+
+        #musicControls {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: gray;
+            cursor: pointer;
+            outline: none;
+            transition: color 0.3s ease;
+        }
+
+        #musicControls.off {
+            color: black;
+        }
+
+        #musicControls:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 关键词容器 -->
+    <div id="keywordsContainer"></div>
+
+    <!-- 等待动画容器，默认隐藏 -->
+    <div id="loadingContainer">
+        <img src="/static/images/trans.gif" alt="Loading...">
+    </div>
+
+    <!-- 音乐控制按钮 -->
+    <button id="musicControls">Music</button>
+
+    <!-- 背景音乐播放器 -->
+    <audio id="backgroundMusic" loop style="display:none;">
+        <source src="/static/music/background.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        const selected = [];
+        const country = "{{ country }}";
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const musicControls = document.getElementById('musicControls');
+
+        // 页面加载时恢复音乐状态
+        window.onload = async function () {
+            try {
+                const isPlaying = localStorage.getItem('musicPlaying') === 'true';
+                if (isPlaying || localStorage.getItem('musicPlaying') === null) {
+                    backgroundMusic.muted = false;
+                    await backgroundMusic.play();
+                    musicControls.classList.remove('off');
+                } else {
+                    backgroundMusic.pause();
+                    musicControls.classList.add('off');
+                }
+            } catch (err) {
+                console.error('Autoplay failed due to browser restrictions:', err);
+            }
+        };
+
+        // 保存音乐状态
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('musicPlaying', !backgroundMusic.paused);
+        });
+
+        // 切换音乐播放/暂停状态
+        musicControls.addEventListener('click', () => {
+            if (backgroundMusic.paused) {
+                backgroundMusic.play();
+                musicControls.classList.remove('off');
+                localStorage.setItem('musicPlaying', 'true');
+            } else {
+                backgroundMusic.pause();
+                musicControls.classList.add('off');
+                localStorage.setItem('musicPlaying', 'false');
+            }
+        });
+
+        function createRandomAnimation() {
+            const deltaX = Math.random() * 300 - 50;
+            const deltaY = Math.random() * 300 - 50;
+            const animationName = `move_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+            const styleSheet = document.styleSheets[0];
+            const keyframes = `
+                @keyframes ${animationName} {
+                    0% { transform: translate(0, 0); }
+                    50% { transform: translate(${deltaX}px, ${deltaY}px); }
+                    100% { transform: translate(0, 0); }
+                }
+            `;
+            styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
+            return animationName;
+        }
+
+        fetch(`/get_keywords?country=${encodeURIComponent(country)}`)
+            .then(response => response.json())
+            .then(keywords => {
+                const container = document.getElementById('keywordsContainer');
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+
+                keywords.forEach((keyword, index) => {
+                    const span = document.createElement('span');
+                    span.textContent = keyword;
+                    span.classList.add('floating');
+                    span.style.fontSize = (30 - Math.min(index, 20)) + 'px';
+
+                    span.style.left = Math.random() * (width - 100) + 'px';
+                    span.style.top = Math.random() * (height - 50) + 'px';
+
+                    const animationName = createRandomAnimation();
+                    span.style.animation = `${animationName} ${5 + Math.random() * 10}s linear infinite alternate`;
+
+                    span.addEventListener('click', () => {
+                        if (!selected.includes(keyword)) {
+                            selected.push(keyword);
+                            span.style.color = 'black';
+
+                            if (selected.length === 5) {
+                                container.innerHTML = "";
+                                const loadingContainer = document.getElementById('loadingContainer');
+                                loadingContainer.style.display = 'block';
+
+                                fetch('/generate_script', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ keywords: selected })
+                                })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.script) {
+                                            sessionStorage.setItem('generatedScript', data.script);
+                                            setTimeout(() => {
+                                                window.location.href = '/script';
+                                            }, 10000);
+                                        } else {
+                                            alert("Failed to generate script. Please try again.");
+                                        }
+                                    })
+                                    .catch(() => alert("An error occurred. Please try again."));
+                            }
+                        }
+                    });
+
+                    container.appendChild(span);
+                });
+            })
+            .catch(() => document.body.innerHTML = "<h3>Failed to load keywords.</h3>");
+    </script>
+</body>
+</html>

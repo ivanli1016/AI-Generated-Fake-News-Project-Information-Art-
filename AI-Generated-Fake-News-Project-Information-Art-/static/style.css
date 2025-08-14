@@ -1,0 +1,31 @@
+/* 全局样式 */
+body {
+    margin: 0;
+    overflow: hidden; /* 防止页面滚动 */
+    background-color: #000; /* 纯黑背景 */
+    font-family: Arial, sans-serif;
+    color: #fff; /* 全局文字颜色为白色 */
+}
+
+/* 标题样式 */
+h1 {
+    text-align: center;
+    color: #fff; /* 白色文字 */
+    margin-top: 20px;
+}
+
+/* 漂浮元素样式 */
+.floating {
+    position: absolute; /* 绝对定位，允许随机分布 */
+    color: #fff; /* 文字颜色 */
+    font-size: 20px; /* 默认字体大小 */
+    white-space: nowrap; /* 防止换行 */
+    transition: transform 0.3s ease; /* 平滑放大效果 */
+    cursor: pointer; /* 鼠标悬停时显示指针 */
+}
+
+/* 鼠标悬停效果 */
+.floating:hover {
+    animation-play-state: paused; /* 悬停时停止动画 */
+    transform: scale(1.2); /* 悬停时放大 1.2 倍 */
+}

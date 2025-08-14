@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Available Countries</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: url("/static/images/background.gif") no-repeat center center fixed;
+            background-size: cover;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-top: 20px;
+        }
+
+        #wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        #container {
+            width: 400px;
+            height: 400px;
+            transform-style: preserve-3d;
+            position: absolute;
+            top: 380px;
+            left: 450px;
+        }
+
+        .floating {
+            position: absolute;
+            color: #fff;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .floating:hover {
+            transform: scale(1.5);
+        }
+
+        #musicControls {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: gray;
+            cursor: pointer;
+            outline: none;
+            transition: color 0.3s ease;
+        }
+
+        #musicControls.off {
+            color: black;
+        }
+
+        #musicControls:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="wrapper">
+        <div id="container"></div>
+    </div>
+
+    <!-- 背景音乐播放器 -->
+    <audio id="backgroundMusic" autoplay loop muted>
+        <source src="/static/music/background.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <!-- 音乐控制按钮 -->
+    <button id="musicControls">Music</button>
+
+    <script>
+        let countries = [];
+
+        // 背景音乐元素
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const musicControls = document.getElementById('musicControls');
+
+        // 页面加载时自动播放音乐
+        window.onload = async function () {
+            try {
+                const isPlaying = localStorage.getItem('musicPlaying') === 'true';
+                if (isPlaying || localStorage.getItem('musicPlaying') === null) {
+                    backgroundMusic.muted = false; // 取消静音
+                    await backgroundMusic.play();
+                    musicControls.classList.remove('off');
+                } else {
+                    backgroundMusic.pause();
+                    musicControls.classList.add('off');
+                }
+            } catch (err) {
+                console.error('Autoplay failed due to browser restrictions:', err);
+            }
+        };
+
+        // 保存音乐播放状态
+        window.addEventListener('beforeunload', () => {
+            localStorage.setItem('musicPlaying', !backgroundMusic.paused);
+        });
+
+        // 切换音乐播放/暂停状态
+        musicControls.addEventListener('click', () => {
+            if (backgroundMusic.paused) {
+                backgroundMusic.play();
+                musicControls.classList.remove('off');
+                localStorage.setItem('musicPlaying', 'true');
+            } else {
+                backgroundMusic.pause();
+                musicControls.classList.add('off');
+                localStorage.setItem('musicPlaying', 'false');
+            }
+        });
+
+        // 初始化国家列表
+        fetch('/get_countries')
+            .then(response => response.json())
+            .then(data => {
+                countries = data;
+                initSphere();
+            })
+            .catch(error => {
+                console.error("Error fetching countries:", error);
+                document.body.innerHTML = "<h3>Failed to load country list.</h3>";
+            });
+
+        let rotX = 0;
+        let rotY = 0;
+        let rotationSpeed = -0.03;
+        let isRotating = false;
+        let isPanning = false;
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let currentY = 0;
+        let scaleFactor = 1.0;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        const container = document.getElementById('container');
+        const radius = 250;
+
+        function initSphere() {
+            const total = countries.length;
+
+            countries.forEach((country, index) => {
+                const span = document.createElement('span');
+                span.textContent = country;
+                span.classList.add('floating');
+
+                const phi = Math.acos(-1 + (2 * index) / total);
+                const theta = Math.sqrt(total * Math.PI) * phi;
+
+                const x = radius * Math.sin(phi) * Math.cos(theta);
+                const y = radius * Math.sin(phi) * Math.sin(theta);
+                const z = radius * Math.cos(phi);
+
+                const rotateXDeg = (Math.random() * 120) - 60;
+                const rotateYDeg = Math.random() * 360;
+
+                span.style.transform = `
+                    translate3d(${x}px, ${y}px, ${z}px)
+                    rotateX(${rotateXDeg}deg)
+                    rotateY(${rotateYDeg}deg)
+                `;
+
+                span.addEventListener('click', () => {
+                    sessionStorage.setItem('selectedCountry', country); // 保存用户选择的国家
+                    window.location.href = `/keywords/${encodeURIComponent(country)}`;
+                });
+
+                container.appendChild(span);
+            });
+
+            animate();
+            addEventListeners();
+        }
+
+        function animate() {
+            if (!isRotating && !isPanning) {
+                rotY += rotationSpeed;
+            }
+
+            container.style.transform = `
+                translate(${offsetX}px, ${offsetY}px)
+                scale(${scaleFactor})
+                rotateX(${rotX}deg)
+                rotateY(${rotY}deg)
+            `;
+
+            requestAnimationFrame(animate);
+        }
+
+        function addEventListeners() {
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('mouseleave', onMouseUp);
+            document.addEventListener('wheel', onWheel, { passive: false });
+        }
+
+        function onMouseDown(e) {
+            if (e.button === 0) {
+                isRotating = true;
+                isPanning = false;
+            }
+
+            if (e.button === 2) {
+                isPanning = true;
+                isRotating = false;
+            }
+
+            startX = e.clientX;
+            startY = e.clientY;
+        }
+
+        function onMouseMove(e) {
+            if (!isRotating && !isPanning) return;
+
+            currentX = e.clientX;
+            currentY = e.clientY;
+
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+            startX = currentX;
+            startY = currentY;
+
+            if (isRotating) {
+                rotY += deltaX * 0.5;
+                rotX -= deltaY * 0.5;
+            } else if (isPanning) {
+                offsetX += deltaX;
+                offsetY += deltaY;
+            }
+        }
+
+        function onMouseUp(e) {
+            if (e.button === 0) {
+                isRotating = false;
+            } else if (e.button === 2) {
+                isPanning = false;
+            }
+        }
+
+        function onWheel(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                scaleFactor *= 1.05;
+            } else {
+                scaleFactor *= 0.95;
+            }
+            scaleFactor = Math.max(0.1, Math.min(5.0, scaleFactor));
+        }
+    </script>
+</body>
+</html>
